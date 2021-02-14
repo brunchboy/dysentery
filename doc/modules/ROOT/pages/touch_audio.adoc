@@ -86,12 +86,12 @@ include::example$status_shared.edn[]
 
 _D_ indicates the number of the mixer sending the packet.
 
-_len~r~_ specifies the length of data following the length field,
-currently seen as `06`.
+_len~r~_ reports the length of the rest of the packet, in other words,
+the number of bytes which come after len~r~. Currently seen as `06`.
 
 _C_ is a 32-bit counter that increments on every timing packet sent.
 Equates to the number of 7ms periods passed since mixer turn on
-(DJM900NXS2 starts emitting timing packets roughly after 19 seconds from
+(DJM-900NXS2 starts emitting timing packets roughly after 19 seconds from
 turn-on, i.e. around `0a73`).
 
 _E_ specifies that the "Link Cue" button is enabled on the mixer, `01`
@@ -106,7 +106,7 @@ player is elected.
 Audio Data packets are sent from players to the mixer in response to Audio
 Timing packets.
 
-NOTE: Irrespective of the _len~r~_ field, this packet is always 1388
+NOTE: Irrespective of the _len~p~_ field, this packet is always `56c`
 bytes long.
 
 [[audio-data-packet]]
@@ -119,7 +119,7 @@ include::example$dbserver_shared.edn[]
 (draw-packet-header 0x1e)
 
 (draw-boxes [(hex-text 06 2 :bold) (text "D" :math)])
-(draw-box (text "len" :math [:sub "r"]) {:span 2})
+(draw-box (text "len" :math [:sub "p"]) {:span 2})
 (draw-box (text "I" :math))
 (draw-related-boxes (repeat 3 0))
 (draw-box (text "C" :math) {:span 4})
@@ -129,10 +129,12 @@ include::example$dbserver_shared.edn[]
 
 _D_ indicates the number of the player sending the packet.
 
-_len~r~_ specifies the length of the packet, either `056c` (header plus
-audio data) or `002c` (header only). `056c` packets are sent in response
-to a timing packet in which _E_ is set to `01`. `002c` packets are sent
-in response to a timing packet in which _E_ is set to `00`.
+_len~p~_ specifies the length of valid data of the entire packet, either
+`056c` (header plus audio data) or `002c` (header only). `056c` packets
+are sent in response to a timing packet in which _E_ is set to `01`.
+`002c` packets are sent in response to a timing packet in which _E_ is
+set to `00`. Note for `002c` packets , the entire packet is still `56c`
+bytes long.
 
 _I_ specifies that the packet is in response to touch audio being
 initially engaged. A value of `1` is sent on packets where touch audio is
@@ -142,7 +144,7 @@ until touch audio is disengaged.
 _C_ specifies the value of counter received from the mixer that the player
 is responding to.
 
-_PCM Data_ 1344 bytes (336 samples) of uncompressed PCM, signed 16-bit,
+_PCM Data_ `540` bytes (336 samples) of uncompressed PCM, signed 16-bit,
 little endian, 48000Hz, stereo data, or zeros.
 
 
