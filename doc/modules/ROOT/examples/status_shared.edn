@@ -1,4 +1,4 @@
-;; Functions to draw common features of status, beat, and control packets.
+;; Functions to draw common features of status, beat, control and audio packets.
 
 ;; Some nice default background colors, used to distinguish header sections.
 (defattrs :bg-green {:fill "#a0ffa0"})

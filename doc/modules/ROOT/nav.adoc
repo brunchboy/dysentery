@@ -8,5 +8,6 @@
 * xref:mixer_integration.adoc[Mixer Integration]
 * xref:loading_tracks.adoc[Loading Tracks & Settings]
 * xref:media.adoc[Media Slot Queries]
+* xref:touch_audio.adoc[Touch Audio]
 * xref:missing.adoc[What’s Missing?]
 * xref:rekordbox-export-analysis:ROOT:exports.adoc[_Database Exports_]

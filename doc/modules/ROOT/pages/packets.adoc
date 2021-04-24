@@ -128,15 +128,15 @@ players to load tracks.
 
 === Port 50004 Packets
 
-Packets sent to port 50004 provide link cue audio data between supported
+Packets sent to port 50004 provide touch audio data between supported
 players and mixers.
 
 [cols=">1m,<14"]
 |===
 |Kind |Purpose
 
-|1e |Audio Data
-|1f |Audio Handover
-|20 |Audio Timing
+|1e |<<touch_audio.adoc#audio-data,Audio Data>>
+|1f |<<touch_audio.adoc#audio-handover,Audio Handover>>
+|20 |<<touch_audio.adoc#audio-timing,Audio Timing>>
 
 |===

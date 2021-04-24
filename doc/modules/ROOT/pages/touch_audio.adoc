@@ -1,0 +1,169 @@
+= Touch Audio 
+David Ng <nudge@nudge.id.au>
+:stem: latexmath
+
+Touch Audio analysis contributed by https://github.com/nudge[@nudge].
+
+The ability to stream audio from players to compatible mixers was added
+with the introduction of the CDJ-3000 in late 2020.
+
+As of September 2020, the CDJ-3000 has the ability to stream Touch Cue
+and Touch Preview audio data to DJM-900NXS2 and DJM-V10 mixers. With the
+analysis of this protocol, we now have an understanding of how audio is
+handled.
+
+[[touch-cue-preview-protocol]]
+== Touch Cue/Preview Protocol
+
+After startup, the mixer continuously sends timing packets (`20`) to each
+supported player every 7ms. In order for a player to receive timing
+packets, bit 5 of byte `cd` of the <<vcdj#cdj-status-packet,CDJ status
+packet>> (type `0a`, port 50002) must be set.
+
+The timing packets contain a flag _E_ which indicates that the "Link Cue"
+button on the mixer is on or off.
+
+Audio packets are carried over UDP port 50004.
+
+NOTE: In the below description, the phrase _"touch audio is engaged"_
+means that a DJ is actively scrubbing on a waveform to engage the
+Touch Cue or Touch Preview feature. The phrase _"touch audio is
+disengaged"_ means that the DJ stops scrubbing on a waveform.
+
+When touch audio is engaged on a player (the initiator player):
+
+* The initiator player sends a zero-filled audio packet (`1e`) to the
+  mixer.
+
+* If the initiator player is currently not elected, the mixer sends a
+  handover packet (`1f`) to the initiator player. The next timing packet
+  will set T to the player number that initiated touch audio. If the
+  player is already the elected player, this step is skipped.
+
+* If E is `00` and touch audio is engaged:
+
+** The elected player sends zero-filled ^[1]^ audio packets (`1e`) to the
+   mixer for every second timing packet received.
+
+* If E is `01` and touch audio is engaged:
+
+** The elected player sends audio packets (`1e`) to mixer with uncompressed
+   PCM signed 16-bit, little endian, 48000Hz, stereo data for every timing
+   packet received.
+
+** If touch audio is disengaged, the elected player continues to send
+   zero-filled audio packets for every timing packet received.
+
+* The elected player stops sending audio packets (`1e`) to the mixer when
+  both E is `00` and touch audio is disengaged OR the timing packet (`20`)
+  specifies that another player has taken over. The mixer continues to send
+  timing packets with T set as the last elected player.
+ 
+^[1]^ If touch audio is engaged but E is toggled from `01` to `00`, instead
+of the player sending zero-filled audio packets (`1e`), the player will
+repeatedly send the last frame of audio data previously sent to the mixer
+when E was `01`.
+
+[[audio-timing]]
+== Audio Timing Packets
+
+Audio Timing packets are sent from the mixer to supported players every 7ms.
+
+[[audio-timing-packet]]
+.Audio Timing packet.
+[bytefield]
+----
+include::example$status_shared.edn[]
+
+(draw-packet-header 0x20)
+
+(draw-boxes [(hex-text 0 2 :bold) (text "D" :math)])
+(draw-box (text "len" :math [:sub "r"]) {:span 2})
+(draw-box (text "C" :math) {:span 4})
+(draw-box (text "E" :math))
+(draw-box (text "T" :math))
+----
+
+_D_ indicates the number of the mixer sending the packet.
+
+_len~r~_ reports the length of the rest of the packet, in other words,
+the number of bytes which come after len~r~. Currently seen as `06`.
+
+_C_ is a 32-bit counter that increments on every timing packet sent.
+Equates to the number of 7ms periods passed since mixer turn on
+(DJM-900NXS2 starts emitting timing packets roughly after 19 seconds from
+turn-on, i.e. around `0a73`).
+
+_E_ specifies that the "Link Cue" button is enabled on the mixer, `01`
+for active, `00` for inactive.
+
+_T_ indicates the player number elected as the audio sender. `0` if no
+player is elected.
+
+[[audio-data]]
+== Audio Data Packets
+
+Audio Data packets are sent from players to the mixer in response to Audio
+Timing packets.
+
+NOTE: Irrespective of the _len~p~_ field, this packet is always `56c`
+bytes long.
+
+[[audio-data-packet]]
+.Audio Data packet.
+[bytefield]
+----
+include::example$status_shared.edn[]
+include::example$dbserver_shared.edn[]
+
+(draw-packet-header 0x1e)
+
+(draw-boxes [(hex-text 06 2 :bold) (text "D" :math)])
+(draw-box (text "len" :math [:sub "p"]) {:span 2})
+(draw-box (text "I" :math))
+(draw-related-boxes (repeat 3 0))
+(draw-box (text "C" :math) {:span 4})
+(draw-gap "PCM Data")
+(draw-bottom)
+----
+
+_D_ indicates the number of the player sending the packet.
+
+_len~p~_ specifies the length of valid data of the entire packet, either
+`056c` (header plus audio data) or `002c` (header only). `056c` packets
+are sent in response to a timing packet in which _E_ is set to `01`.
+`002c` packets are sent in response to a timing packet in which _E_ is
+set to `00`. Note for `002c` packets , the entire packet is still `56c`
+bytes long.
+
+_I_ specifies that the packet is in response to touch audio being
+initially engaged. A value of `1` is sent on packets where touch audio is
+initially engaged. Once engaged, subsequent audio data packets send `0`
+until touch audio is disengaged.
+
+_C_ specifies the value of counter received from the mixer that the player
+is responding to.
+
+_PCM Data_ `540` bytes (336 samples) of uncompressed PCM, signed 16-bit,
+little endian, 48000Hz, stereo data, or zeros.
+
+
+[[audio-handover]]
+== Audio Handover Packets
+
+Audio Handover packets are sent from the mixer to the initiator player
+to indicate that the player should start sending Audio Data packets.
+
+[[audio-handover-packet]]
+.Audio Handover packet.
+[bytefield]
+----
+include::example$status_shared.edn[]
+
+(draw-packet-header 0x1f)
+
+(draw-boxes [(hex-text 0 2 :bold) (text "D" :math)])
+(draw-related-boxes (repeat 2 0))
+----
+
+_D_ indicates the number of the mixer sending the packet.
